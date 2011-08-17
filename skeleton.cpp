@@ -4,8 +4,9 @@
 #include <gdal/ogrsf_frmts.h>
 #include <geos_c.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Polygon_with_holes_2.h>
-#include <CGAL/create_straight_skeleton_from_polygon_with_holes_2.h>
+#include <CGAL/Polygon_2.h>
+#include <CGAL/Polygon_2_algorithms.h>
+#include <CGAL/create_straight_skeleton_2.h>
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K ;
 
@@ -20,28 +21,42 @@ void IsValid(void* ptr, const std::string message)
 {
   if(ptr == NULL){
     std::cerr << message << std::endl;
-    exit( 1 );
+    exit(1);
   }
 }
 
-OGRGeometry* BuildMultiLine(OGRGeometry* geometry)
-{
-  OGRPolygon* poly = dynamic_cast<OGRPolygon *>(geometry->ConvexHull());
-  OGRLinearRing *ring = dynamic_cast<OGRLinearRing *>(poly->getExteriorRing());
-  if(ring == NULL) return NULL; 
+Polygon GeomToPoly(OGRGeometry* geometry){
+  OGRLinearRing *ring = dynamic_cast<OGRLinearRing *>(dynamic_cast<OGRPolygon *>(geometry)->getExteriorRing());
   Polygon skeleton;
-  for(int i=0; i < ring->getNumPoints() - 1; i++) {
-    skeleton.push_back( Point(ring->getX(i), ring->getY(i)) );
+  for(int i=0; i < ring->getNumPoints() - 1; i++)
+    if(CGAL::is_finite(ring->getX(i)) && CGAL::is_finite(ring->getY(i)))
+      skeleton.push_back(Point(ring->getX(i), ring->getY(i)));
+  return skeleton;
+}
+
+
+OGRGeometry* BuildMultiLine(OGRGeometry* geometry){
+  double simplify = 0.01;
+  OGRPolygon* poly = dynamic_cast<OGRPolygon *>(geometry->Simplify(simplify));
+  while(poly == NULL){
+    simplify -= 0.001;
+    poly = dynamic_cast<OGRPolygon *>(geometry->Simplify(simplify));
   }
-  // TK: test if is simple, if not regenerate....
+
+  Polygon skeleton = GeomToPoly(poly);
+  if(!skeleton.is_simple()) skeleton = GeomToPoly(geometry->ConvexHull());
+  if(skeleton.size() < 3) return NULL;
+
   if(skeleton.is_counterclockwise_oriented() == 0) { skeleton.reverse_orientation(); }
-  std::cout << "Skeletonizing." << std::endl;
+  std::cout << "\nSkeletonizing." << std::endl;
   SsPtr iss = CGAL::create_interior_straight_skeleton_2(skeleton);
+  if(!iss.get()) IsValid(NULL, "No skeleton!");
   std::cout << "Computed Skeleton." << std::endl;
   OGRLineString* line = NULL;
   // And finally append points to our shapefile
   double edge = 0;
-  for(Ss::Halfedge_iterator vi = iss->halfedges_begin(); vi != iss->halfedges_end(); ++vi){
+  Ss::Halfedge_iterator vi = iss->halfedges_begin();
+  for(; vi != iss->halfedges_end(); ++vi){
     OGRPoint point  = OGRPoint(vi->vertex()->point().x(), vi->vertex()->point().y());
     OGRPoint npoint = OGRPoint(vi->next()->vertex()->point().x(), vi->next()->vertex()->point().y());
     OGRLineString segment = OGRLineString();
@@ -50,17 +65,16 @@ OGRGeometry* BuildMultiLine(OGRGeometry* geometry)
     if(line == NULL) { line = new OGRLineString; }
     OGRLineString *tmp;
     ++edge;
-    if(vi->vertex()->is_skeleton() && vi->next()->vertex()->is_skeleton() && segment.Within(poly)) {
+    if(vi->vertex()->is_skeleton() && vi->next()->vertex()->is_skeleton() && segment.Within(geometry)) {
       tmp = reinterpret_cast<OGRLineString *>(line->Union(&segment));
       if(tmp != NULL) {
-        std::cout <<  (int) (edge / (double)iss->size_of_halfedges() * 100.0) << "% ";
+        std::cout << "\r" <<  (int) (edge / (double)iss->size_of_halfedges() * 100.0) << "% ";
         std::cout.flush();
         delete line;
         line = tmp;
       }
     }
   }
-  //OGRGeometryFactory::destroyGeometry(ring);
   OGRGeometryFactory::destroyGeometry(poly);
   return line;
 }
@@ -76,7 +90,8 @@ int main(int argc, char **argv)
   IsValid(shp, "Error opening file.");
 
   std::cout << "Shape contains " << shp->GetLayerCount() << " layers." << std::endl;
-  OGRLayer *layer = shp->GetLayer(0);
+  OGRLayer *layer = shp->GetLayerByName(argv[2]);
+  IsValid(layer, "Couldn't grab layer");
 
 
   // Set up writing
@@ -122,7 +137,6 @@ int main(int argc, char **argv)
     for(int i=0; i < geometry->getNumGeometries(); i++){
       OGRGeometry* segment = BuildMultiLine(geometry->getGeometryRef(i));
       if(segment != NULL){
-        std::cout << (segment->getGeometryType()) << std::endl;
         if(line == NULL) { line = new OGRLineString; }
         OGRGeometry* tmp = line->Union(segment);
         if(tmp != NULL){
@@ -132,15 +146,14 @@ int main(int argc, char **argv)
         delete segment;
       }
     }
-    std::cout << (line->getGeometryType()) << std::endl;
     outFeature->SetGeometry(line);
-    if(outLayer->CreateFeature(outFeature) != OGRERR_NONE) {
-      std::cout << "Couldn't create feature." << std::endl; exit(1);
-    };
+    if(outLayer->CreateFeature(outFeature) != OGRERR_NONE){
+      std::cout << "Couldn't create feature." << std::endl;
+      exit(1);
+    }
 
     // clean up
     OGRFeature::DestroyFeature(outFeature);
-    //OGRFeature::DestroyFeature(feature);
     std::cout << std::endl << ++count << std::endl;
   }
 

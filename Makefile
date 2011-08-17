@@ -1,9 +1,10 @@
-CFLAGS := -frounding-math
+CFLAGS := -frounding-math -Wall -pedantic -ggdb
+CC=g++
 INCLUDES := -I/usr/local/include
-LIBS :=  -L/usr/local/lib -L/Library/Frameworks/GDAL.framework/unix/lib/ -lCGAL -lCGAL_Core -lboost_thread-mt -lGDAL -lgmp -lmpfr
+LIBS :=  -L/usr/local/lib -lCGAL -lCGAL_Core -lboost_thread-mt -lgdal -lgmp -lmpfr
 
 skeleton: skeleton.cpp
-	g++ $(CFLAGS) $(INCLUDES) -o skeleton skeleton.cpp $(LIBS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o skeleton skeleton.cpp $(LIBS)
 
 clean:
 	rm -fr *.o skeleton
