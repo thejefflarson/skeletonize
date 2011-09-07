@@ -44,7 +44,6 @@ OGRGeometry* BuildMultiLine(OGRGeometry* geometry){
   }
 
   Polygon skeleton = GeomToPoly(poly);
-  if(!skeleton.is_simple()) skeleton = GeomToPoly(geometry->ConvexHull());
   if(skeleton.size() < 3) return NULL;
 
   if(skeleton.is_counterclockwise_oriented() == 0) { skeleton.reverse_orientation(); }
