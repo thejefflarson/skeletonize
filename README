@@ -1,0 +1,13 @@
+                         >----------<
+
+Skeleton.cpp - Turn your OGR datasources into Straight Skeletons.
+
+Requirements:
+  CGAL and OGR
+
+Usage:
+  $ make
+  $ ./skeleton <input_file> <output_file>
+
+Reference:
+  http://aci.ign.fr/Leicester/paper/Haunert-v2-ICAWorkshop.pdf
