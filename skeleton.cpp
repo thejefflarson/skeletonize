@@ -98,9 +98,9 @@ int main(int argc, char **argv)
   OGRSFDriver *shpDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(kDriverName);
   IsValid(shpDriver, "Couldn't grab the shapefile driver.");
 
-  IsValid(argv[2], "Please provide a output shp.");
-  std::cout << "Writing to: " << argv[2] << std::endl;
-  OGRDataSource *shpOut = shpDriver->CreateDataSource(argv[2], NULL);
+  IsValid(argv[3], "Please provide a output shp.");
+  std::cout << "Writing to: " << argv[3] << std::endl;
+  OGRDataSource *shpOut = shpDriver->CreateDataSource(argv[3], NULL);
   IsValid(shpOut, "Couldn't open output file");
 
   OGRLayer *outLayer = shpOut->CreateLayer(layer->GetName(), NULL, wkbMultiLineString, NULL);

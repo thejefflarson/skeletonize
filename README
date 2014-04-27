@@ -7,7 +7,7 @@ Requirements:
 
 Usage:
   $ make
-  $ ./skeleton <input_file> <output_file>
+  $ ./skeleton <input_file> <layer_name> <output_file>
 
 Reference:
   http://generalisation.icaci.org/images/files/workshop/workshop2004/Haunert-v2-ICAWorkshop.pdf
