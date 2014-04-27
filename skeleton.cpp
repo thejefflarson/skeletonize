@@ -92,6 +92,8 @@ int main(int argc, char **argv)
   OGRLayer *layer = shp->GetLayerByName(argv[2]);
   IsValid(layer, "Couldn't grab layer");
 
+  OGRSpatialReference *srcSRS = NULL;
+  srcSRS = layer->GetSpatialRef();
 
   // Set up writing
   const char *kDriverName = "ESRI Shapefile";
@@ -103,7 +105,7 @@ int main(int argc, char **argv)
   OGRDataSource *shpOut = shpDriver->CreateDataSource(argv[2], NULL);
   IsValid(shpOut, "Couldn't open output file");
 
-  OGRLayer *outLayer = shpOut->CreateLayer(layer->GetName(), NULL, wkbMultiLineString, NULL);
+  OGRLayer *outLayer = shpOut->CreateLayer(layer->GetName(), srcSRS, wkbMultiLineString, NULL);
   IsValid(outLayer, "Couldn't create an output layer");
 
   // copy over the fields from the source file
